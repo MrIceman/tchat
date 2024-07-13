@@ -1,0 +1,23 @@
+package message
+
+import (
+	"encoding/json"
+	"log"
+	"net"
+)
+
+func Receive(conn net.Conn) (map[string]interface{}, []byte) {
+	b := make([]byte, 1024)
+	n, err := conn.Read(b)
+	if err != nil {
+		log.Fatalf("could not read response from server: %s", err.Error())
+	}
+	b = b[:n]
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(b, &resp); err != nil {
+		log.Fatalf("could not unmarshal response: %s", err.Error())
+	}
+
+	return resp, b
+}
