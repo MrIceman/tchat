@@ -1,3 +1,4 @@
+# tchat - A retro chat from the 90s
 tchat is a terminal-based chat application.
 No fancy GUI. You can use the terminal (e.g. from your IDE) to connect to a tchat server and start talking immediately.
 
