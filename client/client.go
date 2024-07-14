@@ -61,6 +61,9 @@ func (c *Client) Run() {
 				continue
 			}
 			message.Transmit(c.conn, msg.Bytes())
+			_, b := message.Receive(c.conn)
+			log.Printf("received response: %s", string(b))
+			continue
 		}
 	}
 }

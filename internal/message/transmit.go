@@ -3,10 +3,11 @@ package message
 import (
 	"log"
 	"net"
+	"time"
 )
 
 func Transmit(conn net.Conn, b []byte) {
 	if _, err := conn.Write(b); err != nil {
-		log.Fatalf("could not transmit message: %s", err.Error())
+		log.Printf("could not transmit message: %s - %d", err.Error(), time.Now().UnixMicro())
 	}
 }

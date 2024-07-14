@@ -29,5 +29,5 @@ func (cs *ChannelService) CreateChannel(userID, channelName string) error {
 }
 
 func (cs *ChannelService) GetAll() ([]types.Channel, error) {
-	return cs.GetAll()
+	return cs.repository.GetAll(), nil
 }

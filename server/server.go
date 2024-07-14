@@ -39,7 +39,7 @@ func runServer(h *handler) {
 				continue
 			}
 
-			h.handleConnection(conn)
+			go h.handleConnection(conn)
 		}
 	}()
 	log.Println("t-chat server started on port 8080")

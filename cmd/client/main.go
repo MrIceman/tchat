@@ -4,7 +4,6 @@ import (
 	"log"
 	"net"
 	"tchat/client"
-	"time"
 )
 
 func main() {
@@ -13,7 +12,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not connect to server on port 8080: %s", err.Error())
 	}
-	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 	c := client.New(conn)
 	c.Connect()
 	c.Run()
