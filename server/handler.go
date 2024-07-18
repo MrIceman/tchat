@@ -2,13 +2,11 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net"
 	"sync"
 	"tchat/internal/message"
-	"tchat/internal/protocol"
 	"tchat/server/serverdomain"
 	"time"
 )
@@ -53,39 +51,25 @@ func (h *handler) setUpConnListener(conn net.Conn) {
 			continue
 		}
 
-		msgB := b[:n]
-		var resp map[string]interface{}
-		if err := json.Unmarshal(msgB, &resp); err != nil {
+		b = b[:n]
+		var msg map[string]interface{}
+		if err := json.Unmarshal(b, &msg); err != nil {
 			log.Fatalf("could not unmarashal request: %s", err.Error())
 		}
-		msgType := message.Type(resp["type"].(string))
+		msgType := message.Type(msg["type"].(string))
 		if !msgType.IsValid() {
 			log.Printf("invalid message type received: %s", msgType)
 		}
-		log.Printf("received message: %s", string(msgB))
-		switch msgType {
-		case message.TypeConnect:
-			var connectMsg protocol.ClientConnectMessage
-			if err := json.Unmarshal(msgB, &connectMsg); err != nil {
-				log.Fatalf("could not unmarshal connect message: %s", err.Error())
-			}
-			userID := connectMsg.UserID
-			if err := h.svc.SignInUser(userID); err != nil {
-				log.Fatalf("could not sign user: %s", err.Error())
-			}
-			message.Transmit(conn, protocol.NewServerSystemMessage(fmt.Sprintf("Hello %s,\n\n%s", userID, welcomeText)).Bytes())
-			log.Printf("%s (%s) connected", conn.RemoteAddr(), userID)
+		log.Printf("received message: %s", string(b))
+
+		if msgType.IsChannelMsg() {
+			h.handleChannelMessage(conn, msgType, b)
 			continue
-		case message.TypeChannelsGet:
-			log.Println("fetching all channels")
-			items, err := h.chSvc.GetAll()
-			if err != nil {
-				log.Fatalf("failed to get all channels: %s", err.Error())
-			}
-			message.Transmit(conn, protocol.NewChannelsResponse(items, message.TypeChannelsGetResponse).Bytes())
+		}
+
+		if msgType.IsConnectMsg() {
+			h.handleConnectionMessage(conn, msgType, b)
 			continue
-		default:
-			log.Fatalf("unexpected message: %s", string(msgB))
 		}
 	}
 }

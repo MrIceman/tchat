@@ -1,6 +1,9 @@
 package message
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 type Type string
 
@@ -25,4 +28,12 @@ var (
 func (t Type) IsValid() bool {
 
 	return slices.Contains(allMessagesTypes, t)
+}
+
+func (t Type) IsChannelMsg() bool {
+	return strings.Contains(string(t), "channel")
+}
+
+func (t Type) IsConnectMsg() bool {
+	return strings.Contains(string(t), "connect")
 }
