@@ -1,13 +1,11 @@
 package client
 
 import (
-	"bufio"
 	"encoding/json"
-	"fmt"
 	"github.com/google/uuid"
 	"log"
 	"net"
-	"os"
+	"sync"
 	"tchat/internal/message"
 	"tchat/internal/protocol"
 )
@@ -15,21 +13,36 @@ import (
 type Client struct {
 	renderer *renderer
 	conn     net.Conn
+	prompter *prompter
 	id       string
+
+	sendMessageChan    chan []byte
+	receiveMessageSubs []chan []byte
 }
 
 func New(conn net.Conn) *Client {
+	clientID := uuid.NewString()
+	sendMessageCh := make(chan []byte)
+	prompterSub := make(chan []byte)
+	rendererSub := make(chan []byte)
+	renderer := newRenderer(rendererSub)
+	prompter := NewPrompter(clientID, sendMessageCh, prompterSub)
+	receiveMessageSubs := []chan []byte{rendererSub, prompterSub}
+
 	return &Client{
-		conn:     conn,
-		renderer: newRenderer(),
-		id:       uuid.NewString(),
+		conn:               conn,
+		renderer:           renderer,
+		id:                 clientID,
+		prompter:           prompter,
+		sendMessageChan:    sendMessageCh,
+		receiveMessageSubs: receiveMessageSubs,
 	}
 }
 
 func (c *Client) Connect() {
 	message.Transmit(c.conn, protocol.NewClientConnectMessage(c.id).Bytes())
-	resp, b := message.Receive(c.conn)
-
+	b := message.Receive(c.conn)
+	resp := message.RawFromBytes(b)
 	switch resp["type"] {
 	case string(message.TypeConnectRes):
 		var connectRes protocol.ServerSystemMessage
@@ -44,29 +57,39 @@ func (c *Client) Connect() {
 }
 
 func (c *Client) Run() {
-	exit := false
-	reader := bufio.NewReader(os.Stdin)
-	for !exit {
-		var text string
-		fmt.Print(fmt.Sprintf("(%s)>: ", c.id))
-		text, err := reader.ReadString('\n')
-		if err != nil {
-			log.Fatalf("error reading input: %s", err.Error())
+	// TODO add a way to gracefully shutdown the client
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		for {
+			b := message.Receive(c.conn)
+			c.broadcastMessage(b)
 		}
-		switch text {
-		case "exit":
-			exit = true
-			continue
-		default:
-			msg, err := ParseFromInput(c.id, text)
-			if err != nil {
-				log.Println(err.Error())
-				continue
+	}()
+
+	go func() {
+		c.renderer.renderMessage()
+	}()
+
+	go func() {
+		c.prompter.Prompt()
+	}()
+
+	go func() {
+		for {
+			select {
+			case msg := <-c.sendMessageChan:
+				message.Transmit(c.conn, msg)
 			}
-			message.Transmit(c.conn, msg.Bytes())
-			m, b := message.Receive(c.conn)
-			c.renderer.renderMessage(b, m)
-			continue
 		}
+	}()
+	log.Println("client is running")
+	wg.Wait()
+	log.Println("client is running")
+}
+
+func (c *Client) broadcastMessage(b []byte) {
+	for _, sub := range c.receiveMessageSubs {
+		sub <- b
 	}
 }

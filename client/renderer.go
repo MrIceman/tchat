@@ -9,20 +9,28 @@ import (
 )
 
 type renderer struct {
+	receiveMessageChan chan []byte
 }
 
-func newRenderer() *renderer {
-	return &renderer{}
+func newRenderer(receiveMessageChan chan []byte) *renderer {
+	return &renderer{
+		receiveMessageChan: receiveMessageChan,
+	}
 }
 
-func (r *renderer) renderMessage(b []byte, msg map[string]interface{}) {
-	msgType := message.Type(msg["type"].(string))
-	if !msgType.IsValid() {
-		log.Printf("invalid message type received: %s", msgType)
+func (r *renderer) renderMessage() {
+	for {
+		b := <-r.receiveMessageChan
+		msg := message.RawFromBytes(b)
+		msgType := message.Type(msg["type"].(string))
+		if !msgType.IsValid() {
+			log.Printf("invalid message type received: %s", msgType)
+		}
+		if msgType.IsChannelMsg() {
+			r.renderChannelMessage(msgType, b)
+		}
 	}
-	if msgType.IsChannelMsg() {
-		r.renderChannelMessage(msgType, b)
-	}
+
 }
 
 func (r *renderer) renderChannelMessage(msgType message.Type, b []byte) {

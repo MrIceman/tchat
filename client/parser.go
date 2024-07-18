@@ -2,7 +2,6 @@ package client
 
 import (
 	"errors"
-	"log"
 	"strings"
 	"tchat/internal/message"
 	"tchat/internal/protocol"
@@ -18,7 +17,6 @@ func ParseFromInput(userID, input string) (protocol.SerializableMessage, error) 
 		if len(parsedInput) < 2 {
 			return nil, errors.New("insufficient arguments")
 		}
-		log.Println(parsedInput[1])
 		if parsedInput[1] == "list" {
 			return protocol.NewChannelsMessage(userID, message.TypeChannelsGet, nil), nil
 		}
