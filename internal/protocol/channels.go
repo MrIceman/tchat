@@ -1,9 +1,12 @@
 package protocol
 
-import "tchat/internal/message"
+import (
+	"encoding/json"
+	"tchat/internal/message"
+)
 
 type ChannelsMessage struct {
-	Payload interface{} `json:"payload"`
+	Payload []byte `json:"payload"`
 	msg
 }
 
@@ -16,7 +19,7 @@ func NewChannelsMessage(userID string, t message.Type) *ChannelsMessage {
 	}
 }
 
-func NewChannelsResponse(payload interface{}, t message.Type) *ChannelsMessage {
+func NewChannelsResponse(payload []byte, t message.Type) *ChannelsMessage {
 	return &ChannelsMessage{
 		Payload: payload,
 		msg: msg{
@@ -30,5 +33,6 @@ func (c ChannelsMessage) User() string {
 }
 
 func (c ChannelsMessage) Bytes() []byte {
-	return c.msg.ToBytes()
+	b, _ := json.Marshal(c)
+	return b
 }

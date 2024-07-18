@@ -13,14 +13,16 @@ import (
 )
 
 type Client struct {
-	conn net.Conn
-	id   string
+	renderer *renderer
+	conn     net.Conn
+	id       string
 }
 
 func New(conn net.Conn) *Client {
 	return &Client{
-		conn: conn,
-		id:   uuid.NewString(),
+		conn:     conn,
+		renderer: newRenderer(),
+		id:       uuid.NewString(),
 	}
 }
 
@@ -62,8 +64,9 @@ func (c *Client) Run() {
 				continue
 			}
 			message.Transmit(c.conn, msg.Bytes())
-			_, b := message.Receive(c.conn)
+			m, b := message.Receive(c.conn)
 			log.Printf("received response: %s", string(b))
+			c.renderer.renderMessage(b, m)
 			continue
 		}
 	}

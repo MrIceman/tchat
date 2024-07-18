@@ -21,6 +21,7 @@ var (
 		TypeConnect,
 		TypeConnectRes,
 		TypeChannelsGet,
+		TypeChannelsGetResponse,
 		TypeDisconnect,
 	}
 )
