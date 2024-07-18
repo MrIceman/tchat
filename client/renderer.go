@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"log"
+	"sync"
 	"tchat/internal/message"
 	"tchat/internal/protocol"
 	"tchat/internal/types"
@@ -10,17 +11,22 @@ import (
 
 type renderer struct {
 	receiveMessageChan chan []byte
+	terminalMutex      *sync.Mutex
 }
 
-func newRenderer(receiveMessageChan chan []byte) *renderer {
+func newRenderer(terminalMutex *sync.Mutex, receiveMessageChan chan []byte) *renderer {
 	return &renderer{
 		receiveMessageChan: receiveMessageChan,
+		terminalMutex:      terminalMutex,
 	}
 }
 
 func (r *renderer) renderMessage() {
 	for {
 		b := <-r.receiveMessageChan
+		log.Println("waiting for mutex to be unlocked")
+		r.terminalMutex.Lock()
+		log.Println("mutex unlocked")
 		msg := message.RawFromBytes(b)
 		msgType := message.Type(msg["type"].(string))
 		if !msgType.IsValid() {
@@ -29,6 +35,7 @@ func (r *renderer) renderMessage() {
 		if msgType.IsChannelMsg() {
 			r.renderChannelMessage(msgType, b)
 		}
+		r.terminalMutex.Unlock()
 	}
 
 }

@@ -25,8 +25,9 @@ func New(conn net.Conn) *Client {
 	sendMessageCh := make(chan []byte)
 	prompterSub := make(chan []byte)
 	rendererSub := make(chan []byte)
-	renderer := newRenderer(rendererSub)
-	prompter := NewPrompter(clientID, sendMessageCh, prompterSub)
+	terminalMutex := &sync.Mutex{}
+	renderer := newRenderer(terminalMutex, rendererSub)
+	prompter := newPrompter(terminalMutex, clientID, sendMessageCh, prompterSub)
 	receiveMessageSubs := []chan []byte{rendererSub, prompterSub}
 
 	return &Client{
@@ -72,7 +73,9 @@ func (c *Client) Run() {
 	}()
 
 	go func() {
-		c.prompter.Prompt()
+		for {
+			c.prompter.Prompt()
+		}
 	}()
 
 	go func() {
@@ -85,10 +88,10 @@ func (c *Client) Run() {
 	}()
 	log.Println("client is running")
 	wg.Wait()
-	log.Println("client is running")
 }
 
 func (c *Client) broadcastMessage(b []byte) {
+	log.Println("broadcasting message")
 	for _, sub := range c.receiveMessageSubs {
 		sub <- b
 	}

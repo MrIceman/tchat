@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 )
 
 type prompter struct {
@@ -12,10 +13,12 @@ type prompter struct {
 	currentPrefix string
 	sendMessageCh chan []byte
 	readMessageCh chan []byte
+	terminalMutex *sync.Mutex
 }
 
-func NewPrompter(clientID string, sendMessageCh chan []byte, readMessageCh chan []byte) *prompter {
+func newPrompter(terminalMutex *sync.Mutex, clientID string, sendMessageCh chan []byte, readMessageCh chan []byte) *prompter {
 	return &prompter{
+		terminalMutex: terminalMutex,
 		clientID:      clientID,
 		currentPrefix: fmt.Sprintf("(%s)>: ", clientID),
 		sendMessageCh: sendMessageCh,
@@ -32,30 +35,25 @@ func (p *prompter) startListening() {
 	}
 }
 
+// TODO this should be refactored as there can only be one coroutine that controls the terminal
 func (p *prompter) Prompt() {
-	exit := false
 	reader := bufio.NewReader(os.Stdin)
-	go p.startListening()
 
-	for !exit {
-		var text string
-		fmt.Print(p.currentPrefix)
-		text, err := reader.ReadString('\n')
-		if err != nil {
-			log.Fatalf("error reading input: %s", err.Error())
-		}
-		switch text {
-		case "exit":
-			exit = true
-			continue
-		default:
-			msg, err := ParseFromInput(p.clientID, text)
-			if err != nil {
-				log.Println(err.Error())
-				continue
-			}
-			p.sendMessageCh <- msg.Bytes()
-			continue
-		}
+	p.terminalMutex.Lock()
+	var text string
+	fmt.Print(p.currentPrefix)
+	text, err := reader.ReadString('\n')
+
+	if err != nil {
+		log.Fatalf("error reading input: %s", err.Error())
+	}
+
+	msg, err := ParseFromInput(p.clientID, text)
+	if err != nil {
+		p.terminalMutex.Unlock()
+		log.Println(err.Error())
+	} else {
+		p.terminalMutex.Unlock()
+		p.sendMessageCh <- msg.Bytes()
 	}
 }
