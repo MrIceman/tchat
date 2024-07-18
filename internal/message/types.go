@@ -12,8 +12,10 @@ const (
 	TypeConnectRes Type = "connect_res"
 	TypeDisconnect Type = "disconnect"
 
-	TypeChannelsGet         Type = "get_channels"
-	TypeChannelsGetResponse      = "get_channels_response"
+	TypeChannelsGet          Type = "get_channels"
+	TypeChannelsGetResponse       = "get_channels_response"
+	TypeChannelsJoin         Type = "join_channel"
+	TypeChannelsJoinResponse Type = "join_channel_response"
 )
 
 var (
