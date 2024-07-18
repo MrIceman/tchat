@@ -13,8 +13,6 @@ func ParseFromInput(userID, input string) (protocol.SerializableMessage, error) 
 	input = strings.ReplaceAll(input, "\n", "")
 	parsedInput := strings.Split(input, " ")
 	msgType := parsedInput[0]
-	log.Printf("amount of parsed input: %d", len(parsedInput))
-	log.Printf("input: %s", input)
 	switch msgType {
 	case "channel":
 		if len(parsedInput) < 2 {

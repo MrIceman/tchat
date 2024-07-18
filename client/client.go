@@ -54,6 +54,7 @@ func (c *Client) Run() {
 		switch text {
 		case "exit":
 			exit = true
+			continue
 		default:
 			msg, err := ParseFromInput(c.id, text)
 			if err != nil {
