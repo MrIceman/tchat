@@ -23,6 +23,8 @@ var (
 		TypeConnect,
 		TypeConnectRes,
 		TypeChannelsGet,
+		TypeChannelsJoin,
+		TypeChannelsJoinResponse,
 		TypeChannelsGetResponse,
 		TypeDisconnect,
 	}

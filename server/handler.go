@@ -60,7 +60,6 @@ func (h *handler) setUpConnListener(conn net.Conn) {
 		if !msgType.IsValid() {
 			log.Printf("invalid message type received: %s", msgType)
 		}
-		log.Printf("received message: %s", string(b))
 
 		if msgType.IsChannelMsg() {
 			h.handleChannelMessage(conn, msgType, b)
@@ -71,5 +70,8 @@ func (h *handler) setUpConnListener(conn net.Conn) {
 			h.handleConnectionMessage(conn, msgType, b)
 			continue
 		}
+
+		log.Printf("received message: %s", string(b))
+
 	}
 }

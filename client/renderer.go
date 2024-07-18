@@ -37,8 +37,17 @@ func (r *renderer) renderChannelMessage(msgType message.Type, b []byte) {
 		log.Println("#### Channels ####")
 		log.Printf("- %d channels found -", len(channels))
 		for _, ch := range channels {
-			log.Printf("\t* %s", ch.Name)
+			log.Printf("\t* %s (%d online)", ch.Name, ch.CurrentUsers)
 		}
+	case message.TypeChannelsJoinResponse:
+		c := protocol.ChannelsMessage{}
+		if err := json.Unmarshal(b, &c); err != nil {
+			log.Fatalf("could not unmarshal response: %s", err.Error())
+		}
+		channel := types.Channel{}
+		_ = json.Unmarshal(c.Payload, &channel)
+		log.Printf("#### Joined Channel %s - There are currently %d users online ####", channel.Name, channel.CurrentUsers)
+		log.Println(channel.WelcomeMessage)
 	default:
 		log.Printf("unhandled message type: %s", msgType)
 	}

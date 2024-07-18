@@ -31,3 +31,7 @@ func (cs *ChannelService) CreateChannel(userID, channelName string) error {
 func (cs *ChannelService) GetAll() ([]types.Channel, error) {
 	return cs.repository.GetAll(), nil
 }
+
+func (cs *ChannelService) JoinChannel(userID, channelName string) (*types.Channel, error) {
+	return cs.repository.OnNewUser(channelName)
+}

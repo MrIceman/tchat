@@ -10,8 +10,9 @@ type ChannelsMessage struct {
 	msg
 }
 
-func NewChannelsMessage(userID string, t message.Type) *ChannelsMessage {
+func NewChannelsMessage(userID string, t message.Type, payload []byte) *ChannelsMessage {
 	return &ChannelsMessage{
+		Payload: payload,
 		msg: msg{
 			MessageType: t,
 			UserID:      userID,

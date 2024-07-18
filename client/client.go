@@ -65,7 +65,6 @@ func (c *Client) Run() {
 			}
 			message.Transmit(c.conn, msg.Bytes())
 			m, b := message.Receive(c.conn)
-			log.Printf("received response: %s", string(b))
 			c.renderer.renderMessage(b, m)
 			continue
 		}
