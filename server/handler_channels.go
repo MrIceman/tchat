@@ -47,6 +47,21 @@ func (h *handler) handleChannelMessage(conn net.Conn, msgType message.Type, b []
 		}); err != nil {
 			log.Printf("could not send message to channel: %s", err.Error())
 		}
+	case message.TypeChannelNewMessage:
+		channelMsg := protocol.ChannelsMessage{}
+		if err := json.Unmarshal(b, &channelMsg); err != nil {
+			log.Printf("could not unmarshal channel message: %s", err.Error())
+			break
+		}
+		msg := types.Message{}
+		if err := json.Unmarshal(channelMsg.Payload, &msg); err != nil {
+			log.Printf("could not unmarshal message: %s:", err.Error(), string(channelMsg.Payload))
+			break
+		}
+		if err := h.chSvc.SendToChannel(msg.Channel, msg); err != nil {
+			log.Printf("could not send message to channel: %s", err.Error())
+			break
+		}
 	default:
 		log.Fatalf("unexpected message: %s", msgType)
 	}

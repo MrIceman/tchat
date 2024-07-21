@@ -42,7 +42,7 @@ func ParseFromInput(userID, input string) (protocol.SerializableMessage, error) 
 		if strings.HasPrefix(input, channelNewUserMessagePrefix) {
 			msgWithoutPrefix := strings.TrimPrefix(input, channelNewUserMessagePrefix)
 			channelAndMsg := strings.Split(msgWithoutPrefix, "#")
-			types.Message{
+			b := types.Message{
 				UserID:      userID,
 				Channel:     channelAndMsg[0],
 				DisplayName: userID,
@@ -50,7 +50,7 @@ func ParseFromInput(userID, input string) (protocol.SerializableMessage, error) 
 				CreatedAt:   time.Now(),
 			}.MustJSON()
 
-			return protocol.NewChannelsMessage(userID, message.TypeChannelNewMessage, []byte(input)), nil
+			return protocol.NewChannelsMessage(userID, message.TypeChannelNewMessage, b), nil
 		}
 		return nil, validation.ErrMessageTypeNotImplemented
 	}
