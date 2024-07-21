@@ -1,23 +1,31 @@
 package client
 
 import (
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"io"
+	"strings"
+	types2 "tchat/internal/types"
 )
 
 type app struct {
-	sendMessageChan chan []byte
-	ui              io.Writer
-	application     *tview.Application
+	sendMessageCh chan []byte
+	renderTextCh  chan []string
+	joinChannelCh chan types2.Channel
+	exitChannelCh chan struct{}
+	application   *tview.Application
 
-	textView   *tview.TextView
-	inputField *tview.InputField
+	lobbyView   *tview.TextView
+	currentView *tview.TextView
+	inputView   *tview.InputField
 }
 
-func newView(sendMessageChan chan []byte) *app {
+func newView(sendMessageChan chan []byte, renderTextCh chan []string, joinChannelCh chan types2.Channel, exitChannelCh chan struct{}) *app {
 	return &app{
-		sendMessageChan: sendMessageChan,
+		sendMessageCh: sendMessageChan,
+		renderTextCh:  renderTextCh,
+		joinChannelCh: joinChannelCh,
+		exitChannelCh: exitChannelCh,
 	}
 }
 
@@ -25,16 +33,27 @@ func (v *app) setUp() {
 	app := tview.NewApplication()
 	inputField :=
 		tview.NewInputField().
-			SetLabel(">: ").
-			SetFieldWidth(30)
+			SetLabel(">: ")
+	inputField.SetBackgroundColor(tcell.ColorYellow)
+	inputField.SetFieldBackgroundColor(tcell.ColorYellow)
+	inputField.SetFieldTextColor(tcell.ColorBlack)
 
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
-			v.sendMessageChan <- []byte(inputField.GetText())
+			v.sendMessageCh <- []byte(inputField.GetText())
 			inputField.SetText("")
 		}
 	})
+	textView := v.setUpLobbyView(app)
+	v.application = app
+	v.lobbyView = textView
+	v.currentView = textView
+	v.inputView = inputField
 
+	v.runChannelConsumers()
+}
+
+func (v *app) setUpLobbyView(app *tview.Application) *tview.TextView {
 	textView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
@@ -55,23 +74,77 @@ func (v *app) setUp() {
 		return event
 	})
 
-	v.application = app
-	v.ui = textView
-	v.textView = textView
-	v.inputField = inputField
+	return textView
 }
 
-func (v *app) UI() io.Writer {
-	return v.ui
+func (v *app) setUpChannelView(app *tview.Application, c types2.Channel) *tview.TextView {
+	textView := tview.NewTextView().
+		SetDynamicColors(true).
+		SetRegions(true).
+		SetChangedFunc(func() {
+			app.Draw()
+		})
+	textView.SetScrollable(true)
+
+	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyUp:
+			row, n := textView.GetScrollOffset()
+			textView.ScrollTo(row-1, n)
+		case tcell.KeyDown:
+			row, n := textView.GetScrollOffset()
+			textView.ScrollTo(row+1, n)
+		}
+		return event
+	})
+
+	textView.SetText(c.WelcomeMessage)
+
+	return textView
+}
+
+func (v *app) runChannelConsumers() {
+	go func() {
+		for {
+			select {
+			case text := <-v.renderTextCh:
+				fmt.Fprintf(v.currentView, "%s\n", strings.Join(text, "\n"))
+				v.currentView.ScrollToEnd()
+			case channel := <-v.joinChannelCh:
+				v.JoinChannel(channel.Name)
+			case <-v.exitChannelCh:
+				v.LeaveChannel()
+			}
+		}
+	}()
+
 }
 
 func (v *app) Run() error {
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(v.textView, 0, 1, false).
-		AddItem(v.inputField, 1, 0, true)
+		AddItem(v.currentView, 0, 1, false).
+		AddItem(v.inputView, 1, 0, true)
 	if err := v.application.SetRoot(flex, true).Run(); err != nil {
 		panic(err)
 	}
 	return nil
+}
+
+func (v *app) JoinChannel(channelName string) {
+	v.currentView = v.setUpChannelView(v.application, types2.Channel{Name: channelName})
+	f := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(v.currentView, 0, 1, false).
+		AddItem(v.inputView, 1, 0, true)
+	v.application.SetRoot(f, true)
+}
+
+func (v *app) LeaveChannel() {
+	v.currentView = v.lobbyView
+	f := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(v.currentView, 0, 1, false).
+		AddItem(v.inputView, 1, 0, true)
+	v.application.SetRoot(f, true)
 }
