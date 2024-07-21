@@ -33,7 +33,8 @@ func (h *handler) handleChannelMessage(conn net.Conn, msgType message.Type, b []
 		channelName := string(channelMsg.Payload)
 		ch, err := h.chSvc.JoinChannel(channelMsg.User(), channelName, conn)
 		if err != nil {
-			log.Fatalf("could not join channel: %s", err.Error())
+			log.Printf("could not join channel: %s", err.Error())
+			break
 		}
 		b, _ := json.Marshal(ch)
 		message.Transmit(conn, protocol.NewChannelsResponse(b, message.TypeChannelsJoinResponse).Bytes())

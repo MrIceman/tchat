@@ -7,6 +7,7 @@ import (
 	"tchat/internal/message"
 	"tchat/internal/protocol"
 	"tchat/internal/types"
+	"time"
 )
 
 type viewController struct {
@@ -59,7 +60,19 @@ func (r *viewController) renderChannelMessage(msgType message.Type, b []byte) {
 		r.renderTextCh <- []string{"#### Type /users to see all users in the channel ####"}
 		r.renderTextCh <- []string{"#### Type /msg <user> <message> to send a private message ####"}
 		r.renderTextCh <- []string{"----------------------------------------------------------", fmt.Sprintf("Channel Message: %s", channel.WelcomeMessage)}
+	case message.TypeChannelNewMessage:
+		c := protocol.ChannelsMessage{}
+		if err := json.Unmarshal(b, &c); err != nil {
+			r.renderTextCh <- []string{fmt.Sprintf("could not unmarshal response: %s", err.Error())}
+		}
+		msg := types.Message{}
+		_ = json.Unmarshal(c.Payload, &msg)
+		r.renderTextCh <- []string{fmt.Sprintf("%s %s:    %s", getTimeString(msg.CreatedAt), msg.UserID, msg.Content)}
 	default:
-		log.Fatalf("unexpected message type: %s", msgType)
+		r.renderTextCh <- []string{fmt.Sprintf("unexpected message type: %s", msgType)}
 	}
+}
+
+func getTimeString(t time.Time) string {
+	return t.Format("2006-01-02 15:04:05")
 }

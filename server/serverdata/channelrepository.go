@@ -2,6 +2,7 @@ package serverdata
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"slices"
 	"sync"
@@ -91,8 +92,18 @@ func (cr *ChannelRepository) NewMessage(channelName string, msg types.Message) e
 	wg.Add(len(cr.channelConns[channelName]))
 	for _, conn := range cr.channelConns[channelName] {
 		go func(wg *sync.WaitGroup) {
-			message2.Transmit(conn,
-				protocol.NewChannelsMessage(msg.UserID, message2.TypeChannelNewMessage, msg.MustJSON()).Bytes())
+			if err := message2.Transmit(conn,
+				protocol.NewChannelsMessage(msg.UserID, message2.TypeChannelNewMessage, msg.MustJSON()).Bytes()); err != nil {
+				cr.mutex.Lock()
+				log.Printf("conn %s not reachable, removing from channel %s", conn.RemoteAddr(), channelName)
+				allCons := cr.channelConns[channelName]
+				for i, c := range allCons {
+					if c == conn {
+						cr.channelConns[channelName] = append(allCons[:i], allCons[i+1:]...)
+					}
+				}
+				cr.mutex.Unlock()
+			}
 			wg.Done()
 		}(&wg)
 	}
