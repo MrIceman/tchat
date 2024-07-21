@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/google/uuid"
 	"log"
 	"net"
@@ -10,11 +11,15 @@ import (
 	"tchat/internal/protocol"
 )
 
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
+
 type Client struct {
 	renderer *renderer
 	conn     net.Conn
-	prompter *prompter
 	id       string
+	app      *app
 
 	sendMessageChan    chan []byte
 	receiveMessageSubs []chan []byte
@@ -23,20 +28,17 @@ type Client struct {
 func New(conn net.Conn) *Client {
 	clientID := uuid.NewString()
 	sendMessageCh := make(chan []byte)
-	prompterSub := make(chan []byte)
 	rendererSub := make(chan []byte)
-	terminalMutex := &sync.Mutex{}
-	renderer := newRenderer(terminalMutex, rendererSub)
-	prompter := newPrompter(terminalMutex, clientID, sendMessageCh, prompterSub)
-	receiveMessageSubs := []chan []byte{rendererSub, prompterSub}
+	v := newView(sendMessageCh)
+	v.setUp()
+	renderer := newRenderer(rendererSub, v.UI())
 
 	return &Client{
-		conn:               conn,
-		renderer:           renderer,
-		id:                 clientID,
-		prompter:           prompter,
-		sendMessageChan:    sendMessageCh,
-		receiveMessageSubs: receiveMessageSubs,
+		conn:            conn,
+		renderer:        renderer,
+		id:              clientID,
+		sendMessageChan: sendMessageCh,
+		app:             v,
 	}
 }
 
@@ -50,7 +52,8 @@ func (c *Client) Connect() {
 		if err := json.Unmarshal(b, &connectRes); err != nil {
 			log.Fatalf("could not unmarshal connect response: %s", err.Error())
 		}
-		log.Printf(connectRes.Message.(string))
+
+		fmt.Fprintln(c.renderer.writer, fmt.Sprintf("Connected to server as %s", connectRes.Message.(string)))
 	default:
 		log.Fatalf("unexpected response from server: %s", string(b))
 		return
@@ -58,23 +61,19 @@ func (c *Client) Connect() {
 }
 
 func (c *Client) Run() {
-	// TODO add a way to gracefully shutdown the client
+
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
-		for {
-			b := message.Receive(c.conn)
-			c.broadcastMessage(b)
+		if err := c.app.Run(); err != nil {
+			log.Fatalf("could not run application: %s", err.Error())
 		}
 	}()
 
 	go func() {
-		c.renderer.renderMessage()
-	}()
-
-	go func() {
 		for {
-			c.prompter.Prompt()
+			b := message.Receive(c.conn)
+			c.renderer.renderMessage(b)
 		}
 	}()
 
@@ -82,16 +81,21 @@ func (c *Client) Run() {
 		for {
 			select {
 			case msg := <-c.sendMessageChan:
-				message.Transmit(c.conn, msg)
+				m, err := ParseFromInput(c.id, string(msg))
+				if err != nil {
+					fmt.Fprintln(c.app.UI(), fmt.Sprintf("could not parse message: %s", err.Error()))
+					c.app.textView.ScrollToEnd()
+				} else {
+					message.Transmit(c.conn, m.Bytes())
+				}
 			}
 		}
 	}()
-	log.Println("client is running")
 	wg.Wait()
+
 }
 
 func (c *Client) broadcastMessage(b []byte) {
-	log.Println("broadcasting message")
 	for _, sub := range c.receiveMessageSubs {
 		sub <- b
 	}
