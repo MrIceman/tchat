@@ -25,7 +25,7 @@ func (h *handler) handleChannelMessage(conn net.Conn, msgType message.Type, b []
 			log.Fatalf("could not unmarshal channel message: %s", err.Error())
 		}
 		channelName := string(channelMsg.Payload)
-		ch, err := h.chSvc.JoinChannel(channelMsg.User(), channelName)
+		ch, err := h.chSvc.JoinChannel(channelMsg.User(), channelName, conn)
 		if err != nil {
 			log.Fatalf("could not join channel: %s", err.Error())
 		}

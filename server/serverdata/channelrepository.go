@@ -2,15 +2,19 @@ package serverdata
 
 import (
 	"fmt"
+	"net"
 	"slices"
 	"sync"
+	message2 "tchat/internal/message"
+	"tchat/internal/protocol"
 	"tchat/internal/types"
 	"time"
 )
 
 type ChannelRepository struct {
-	mutex       sync.Mutex
-	channelList []*types.Channel
+	mutex        sync.Mutex
+	channelList  []*types.Channel
+	channelConns map[string][]net.Conn
 }
 
 func NewChannelRepository() *ChannelRepository {
@@ -52,7 +56,7 @@ func (cr *ChannelRepository) CreateChannel(c types.Channel) error {
 	return nil
 }
 
-func (cr *ChannelRepository) OnNewUser(channelName string) (*types.Channel, error) {
+func (cr *ChannelRepository) OnNewUser(channelName string, conn net.Conn) (*types.Channel, error) {
 	cr.mutex.Lock()
 	defer cr.mutex.Unlock()
 
@@ -62,6 +66,30 @@ func (cr *ChannelRepository) OnNewUser(channelName string) (*types.Channel, erro
 			return ch, nil
 		}
 	}
+	cr.channelConns[channelName] = append(cr.channelConns[channelName], conn)
 
 	return nil, fmt.Errorf("channel with name %s not found", channelName)
+}
+
+func (cr *ChannelRepository) NewMessage(channelName string, msg types.Message) error {
+	for _, ch := range cr.channelList {
+		if ch.Name == channelName {
+			cr.mutex.Lock()
+			ch.TotalMessages++
+			cr.mutex.Unlock()
+			return nil
+		}
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(len(cr.channelConns[channelName]))
+	for _, conn := range cr.channelConns[channelName] {
+		go func(wg *sync.WaitGroup) {
+			message2.Transmit(conn,
+				protocol.NewChannelsMessage(msg.UserID, message2.TypeChannelNewMessage, msg.MustJSON()).Bytes())
+			wg.Done()
+		}(&wg)
+	}
+	wg.Wait()
+
+	return fmt.Errorf("channel with name %s not found", channelName)
 }

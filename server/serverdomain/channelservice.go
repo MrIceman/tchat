@@ -1,6 +1,7 @@
 package serverdomain
 
 import (
+	"net"
 	"tchat/internal/types"
 	"tchat/server/serverdata"
 	"time"
@@ -32,6 +33,6 @@ func (cs *ChannelService) GetAll() ([]types.Channel, error) {
 	return cs.repository.GetAll(), nil
 }
 
-func (cs *ChannelService) JoinChannel(userID, channelName string) (*types.Channel, error) {
-	return cs.repository.OnNewUser(channelName)
+func (cs *ChannelService) JoinChannel(userID, channelName string, conn net.Conn) (*types.Channel, error) {
+	return cs.repository.OnNewUser(channelName, conn)
 }

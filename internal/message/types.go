@@ -16,6 +16,7 @@ const (
 	TypeChannelsGetResponse       = "get_channels_response"
 	TypeChannelsJoin         Type = "join_channel"
 	TypeChannelsJoinResponse Type = "join_channel_response"
+	TypeChannelNewMessage    Type = "new_message"
 )
 
 var (
