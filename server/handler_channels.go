@@ -8,6 +8,9 @@ import (
 	"tchat/internal/protocol"
 )
 
+// TODO currently we're transmitting to the client within the handler but also now within the channel repository
+// since the handler will not return anything as there is no client facing API, we should probably move all the transmission
+// to a single place, probably within the repository
 func (h *handler) handleChannelMessage(conn net.Conn, msgType message.Type, b []byte) {
 	switch msgType {
 	case message.TypeChannelsGet:
