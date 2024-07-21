@@ -2,10 +2,13 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"tchat/internal/message"
 	"tchat/internal/protocol"
+	"tchat/internal/types"
+	"time"
 )
 
 // TODO currently we're transmitting to the client within the handler but also now within the channel repository
@@ -34,6 +37,15 @@ func (h *handler) handleChannelMessage(conn net.Conn, msgType message.Type, b []
 		}
 		b, _ := json.Marshal(ch)
 		message.Transmit(conn, protocol.NewChannelsResponse(b, message.TypeChannelsJoinResponse).Bytes())
+
+		if err := h.chSvc.SendToChannel(channelName, types.Message{
+			UserID:      "system",
+			DisplayName: "system",
+			Content:     fmt.Sprintf("%s has joined the channel. Say a warm hello!", channelMsg.User()),
+			CreatedAt:   time.Now(),
+		}); err != nil {
+			log.Printf("could not send message to channel: %s", err.Error())
+		}
 	default:
 		log.Fatalf("unexpected message: %s", msgType)
 	}

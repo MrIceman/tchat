@@ -34,5 +34,9 @@ func (cs *ChannelService) GetAll() ([]types.Channel, error) {
 }
 
 func (cs *ChannelService) JoinChannel(userID, channelName string, conn net.Conn) (*types.Channel, error) {
-	return cs.repository.OnNewUser(channelName, conn)
+	return cs.repository.OnNewUser(channelName, userID, conn)
+}
+
+func (cs *ChannelService) SendToChannel(channelName string, msg types.Message) error {
+	return cs.repository.NewMessage(channelName, msg)
 }

@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"sync"
 	"tchat/internal/message"
 	"tchat/server/serverdomain"
@@ -52,26 +53,26 @@ func (h *handler) setUpConnListener(conn net.Conn) {
 		}
 
 		b = b[:n]
-		var msg map[string]interface{}
-		if err := json.Unmarshal(b, &msg); err != nil {
-			log.Fatalf("could not unmarashal request: %s", err.Error())
-		}
-		msgType := message.Type(msg["type"].(string))
-		if !msgType.IsValid() {
-			log.Printf("invalid message type received: %s", msgType)
-		}
+		go func(b []byte) {
+			if os.Getenv("debug") == "true" {
+				log.Printf("received message: %s", string(b))
+			}
+			var msg map[string]interface{}
+			if err := json.Unmarshal(b, &msg); err != nil {
+				log.Fatalf("could not unmarshal request: %s", err.Error())
+			}
+			msgType := message.Type(msg["type"].(string))
+			if !msgType.IsValid() {
+				log.Printf("invalid message type received: %s", msgType)
+			}
 
-		if msgType.IsChannelMsg() {
-			h.handleChannelMessage(conn, msgType, b)
-			continue
-		}
+			if msgType.IsChannelMsg() {
+				h.handleChannelMessage(conn, msgType, b)
+			}
 
-		if msgType.IsConnectMsg() {
-			h.handleConnectionMessage(conn, msgType, b)
-			continue
-		}
-
-		log.Printf("received message: %s", string(b))
-
+			if msgType.IsConnectMsg() {
+				h.handleConnectionMessage(conn, msgType, b)
+			}
+		}(b)
 	}
 }

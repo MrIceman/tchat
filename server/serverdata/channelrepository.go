@@ -19,7 +19,8 @@ type ChannelRepository struct {
 
 func NewChannelRepository() *ChannelRepository {
 	return &ChannelRepository{
-		mutex: sync.Mutex{},
+		mutex:        sync.Mutex{},
+		channelConns: make(map[string][]net.Conn),
 		channelList: []*types.Channel{
 			{
 				Name:           "general",
@@ -56,30 +57,36 @@ func (cr *ChannelRepository) CreateChannel(c types.Channel) error {
 	return nil
 }
 
-func (cr *ChannelRepository) OnNewUser(channelName string, conn net.Conn) (*types.Channel, error) {
-	cr.mutex.Lock()
-	defer cr.mutex.Unlock()
+func (cr *ChannelRepository) OnNewUser(channelName, userID string, conn net.Conn) (*types.Channel, error) {
 
 	for i, ch := range cr.channelList {
 		if ch.Name == channelName {
+			cr.mutex.Lock()
 			cr.channelList[i].CurrentUsers++
+			cr.channelConns[channelName] = append(cr.channelConns[channelName], conn)
+			cr.mutex.Unlock()
 			return ch, nil
 		}
 	}
-	cr.channelConns[channelName] = append(cr.channelConns[channelName], conn)
 
 	return nil, fmt.Errorf("channel with name %s not found", channelName)
 }
 
 func (cr *ChannelRepository) NewMessage(channelName string, msg types.Message) error {
+	channelFound := false
 	for _, ch := range cr.channelList {
 		if ch.Name == channelName {
 			cr.mutex.Lock()
 			ch.TotalMessages++
 			cr.mutex.Unlock()
-			return nil
+			channelFound = true
 		}
 	}
+
+	if !channelFound {
+		return fmt.Errorf("channel with name %s not found", channelName)
+	}
+
 	wg := sync.WaitGroup{}
 	wg.Add(len(cr.channelConns[channelName]))
 	for _, conn := range cr.channelConns[channelName] {
@@ -89,7 +96,8 @@ func (cr *ChannelRepository) NewMessage(channelName string, msg types.Message) e
 			wg.Done()
 		}(&wg)
 	}
+
 	wg.Wait()
 
-	return fmt.Errorf("channel with name %s not found", channelName)
+	return nil
 }
