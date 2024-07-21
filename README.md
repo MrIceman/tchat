@@ -3,6 +3,19 @@
 tchat is a terminal-based chat application.
 No fancy GUI. You can use the terminal (e.g. from your IDE) to connect to a tchat server and start talking immediately.
 
+## current state
+
+Right now, the server is able to understand the following commands:
+
+* /channel list
+* /channel join <channel>
+* exit
+
+Further, some internal commands are available such as connect, disconnect, channel_new_message.
+Clients can connect to the server, list all channels and join existing ones. Once a user connected to a channel, he
+can then type messages and submit it so it will be broadcasted by the server to all clients that are inside the channel.
+There is no persistence yet, so once the server is stopped, all messages are lost.
+
 ## architecture
 
 I'm using some sort of a hexagonic architecture for the client and the server.
