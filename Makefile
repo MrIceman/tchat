@@ -1,5 +1,5 @@
-run_server:
+run-server:
 	cd cmd/server && go run main.go
 
-run_client:
+run-client:
 	cd cmd/client && go run main.go
