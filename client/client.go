@@ -23,6 +23,7 @@ type Client struct {
 
 	sendMessageChan    chan []byte
 	receiveMessageSubs []chan []byte
+	exitCh             chan struct{}
 }
 
 func New(conn net.Conn) *Client {
@@ -30,6 +31,7 @@ func New(conn net.Conn) *Client {
 	sendMessageCh := make(chan []byte)
 	rendererSub := make(chan []byte)
 	v := newView(sendMessageCh)
+	exitCh := make(chan struct{})
 	v.setUp()
 	renderer := newRenderer(rendererSub, v.UI())
 
@@ -39,6 +41,7 @@ func New(conn net.Conn) *Client {
 		id:              clientID,
 		sendMessageChan: sendMessageCh,
 		app:             v,
+		exitCh:          exitCh,
 	}
 }
 
@@ -65,6 +68,12 @@ func (c *Client) Run() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
+		for {
+			<-c.exitCh
+			c.app.application.Stop()
+		}
+	}()
+	go func() {
 		if err := c.app.Run(); err != nil {
 			log.Fatalf("could not run application: %s", err.Error())
 		}
@@ -82,6 +91,12 @@ func (c *Client) Run() {
 			select {
 			case msg := <-c.sendMessageChan:
 				m, err := ParseFromInput(c.id, string(msg))
+				// check if m is instance of DisconnectMessage
+				if _, ok := m.(protocol.DisconnectMessage); ok {
+					c.exitCh <- struct{}{}
+					break
+				}
+
 				if err != nil {
 					fmt.Fprintln(c.app.UI(), fmt.Sprintf("could not parse message: %s", err.Error()))
 					c.app.textView.ScrollToEnd()

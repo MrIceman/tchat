@@ -33,3 +33,17 @@ func (c ClientConnectMessage) Bytes() []byte {
 func (c ClientConnectMessage) User() string {
 	return c.UserID
 }
+
+type DisconnectMessage struct {
+	msg
+}
+
+func (d DisconnectMessage) Bytes() []byte {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d DisconnectMessage) User() string {
+	//TODO implement me
+	panic("implement me")
+}

@@ -13,6 +13,8 @@ func ParseFromInput(userID, input string) (protocol.SerializableMessage, error) 
 	parsedInput := strings.Split(input, " ")
 	msgType := parsedInput[0]
 	switch msgType {
+	case "exit":
+		return protocol.DisconnectMessage{}, nil
 	case "channel":
 		if len(parsedInput) < 2 {
 			return nil, errors.New("insufficient arguments")
