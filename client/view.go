@@ -18,6 +18,8 @@ type app struct {
 	lobbyView   *tview.TextView
 	currentView *tview.TextView
 	inputView   *tview.InputField
+
+	currentChannel *string
 }
 
 func newView(sendMessageChan chan []byte, renderTextCh chan []string, joinChannelCh chan types2.Channel, exitChannelCh chan struct{}) *app {
@@ -40,7 +42,13 @@ func (v *app) setUp() {
 
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
-			v.sendMessageCh <- []byte(inputField.GetText())
+			statePrefix := ""
+			// kinda ugly but for now it works
+			if v.currentChannel != nil {
+				statePrefix = channelNewUserMessagePrefix
+				statePrefix += fmt.Sprintf("%s#", *v.currentChannel)
+			}
+			v.sendMessageCh <- []byte(statePrefix + inputField.GetText())
 			inputField.SetText("")
 		}
 	})
@@ -132,6 +140,7 @@ func (v *app) Run() error {
 }
 
 func (v *app) JoinChannel(channelName string) {
+	v.currentChannel = &channelName
 	v.currentView = v.setUpChannelView(v.application, types2.Channel{Name: channelName})
 	f := tview.NewFlex().
 		SetDirection(tview.FlexRow).
@@ -141,6 +150,7 @@ func (v *app) JoinChannel(channelName string) {
 }
 
 func (v *app) LeaveChannel() {
+	v.currentChannel = nil
 	v.currentView = v.lobbyView
 	f := tview.NewFlex().
 		SetDirection(tview.FlexRow).

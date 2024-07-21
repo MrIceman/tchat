@@ -5,7 +5,13 @@ import (
 	"strings"
 	"tchat/internal/message"
 	"tchat/internal/protocol"
+	"tchat/internal/types"
 	"tchat/internal/validation"
+	"time"
+)
+
+const (
+	channelNewUserMessagePrefix = "#newmessage#"
 )
 
 func ParseFromInput(userID, input string) (protocol.SerializableMessage, error) {
@@ -32,6 +38,20 @@ func ParseFromInput(userID, input string) (protocol.SerializableMessage, error) 
 
 		return nil, errors.New("invalid arguments")
 	default:
+		// dont like encoding it in the message, but for now it works
+		if strings.HasPrefix(input, channelNewUserMessagePrefix) {
+			msgWithoutPrefix := strings.TrimPrefix(input, channelNewUserMessagePrefix)
+			channelAndMsg := strings.Split(msgWithoutPrefix, "#")
+			types.Message{
+				UserID:      userID,
+				Channel:     channelAndMsg[0],
+				DisplayName: userID,
+				Content:     channelAndMsg[1],
+				CreatedAt:   time.Now(),
+			}.MustJSON()
+
+			return protocol.NewChannelsMessage(userID, message.TypeChannelNewMessage, []byte(input)), nil
+		}
 		return nil, validation.ErrMessageTypeNotImplemented
 	}
 }

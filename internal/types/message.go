@@ -11,6 +11,7 @@ type Message struct {
 	DisplayName string    `json:"displayName"`
 	Content     string    `json:"content"`
 	CreatedAt   time.Time `json:"createdAt"`
+	Channel     string    `json:"channel"`
 }
 
 func (m Message) MustJSON() []byte {
