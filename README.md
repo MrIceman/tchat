@@ -9,6 +9,8 @@ Right now, the server is able to understand the following commands:
 
 * /channel list
 * /channel join <channel>
+* /channel create <channel>
+* /leave (while being in channel)
 * exit
 
 Further, some internal commands are available such as connect, disconnect, channel_new_message.
