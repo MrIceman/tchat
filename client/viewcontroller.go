@@ -23,7 +23,13 @@ func newViewController(renderTextCh chan []string, onChannelJoinCh chan types.Ch
 }
 
 func (r *viewController) onNewMessage(b []byte) {
-	msg := message.RawFromBytes(b)
+	copyB := make([]byte, len(b))
+	copy(copyB, b)
+	msg, err := message.RawFromBytes(copyB)
+	if err != nil {
+		r.renderTextCh <- []string{fmt.Errorf("could not unmarshal response: %s", err.Error()).Error()}
+		return
+	}
 	msgType := message.Type(msg["type"].(string))
 	if !msgType.IsValid() {
 		r.renderTextCh <- []string{fmt.Sprintf("invalid message type received: %s", msgType)}
@@ -49,7 +55,7 @@ func (r *viewController) renderChannelMessage(msgType message.Type, b []byte) {
 	case message.TypeChannelsJoinResponse:
 		c := protocol.ChannelsMessage{}
 		if err := json.Unmarshal(b, &c); err != nil {
-			log.Fatalf("could not unmarshal response: %s", err.Error())
+			r.renderTextCh <- []string{fmt.Sprintf("could not unmarshal response: %s", err.Error())}
 		}
 		channel := types.Channel{}
 		_ = json.Unmarshal(c.Payload, &channel)
@@ -63,7 +69,7 @@ func (r *viewController) renderChannelMessage(msgType message.Type, b []byte) {
 	case message.TypeChannelNewMessage:
 		c := protocol.ChannelsMessage{}
 		if err := json.Unmarshal(b, &c); err != nil {
-			r.renderTextCh <- []string{fmt.Sprintf("could not unmarshal response: %s", err.Error())}
+			r.renderTextCh <- []string{fmt.Sprintf("could not unmarshal response: %s", string(b))}
 		}
 		msg := types.Message{}
 		_ = json.Unmarshal(c.Payload, &msg)

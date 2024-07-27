@@ -52,8 +52,8 @@ func New(conn net.Conn) *Client {
 
 func (c *Client) Connect() {
 	message.Transmit(c.conn, protocol.NewClientConnectMessage(c.id).Bytes())
-	b := message.Receive(c.conn)
-	resp := message.RawFromBytes(b)
+	b, _ := message.Receive(c.conn)
+	resp, _ := message.RawFromBytes(b)
 	switch resp["type"] {
 	case string(message.TypeConnectRes):
 		var connectRes protocol.ServerSystemMessage
@@ -80,7 +80,11 @@ func (c *Client) Run() {
 
 	go func() {
 		for {
-			b := message.Receive(c.conn)
+			b, err := message.Receive(c.conn)
+			if err != nil {
+				c.renderTextChan <- []string{fmt.Sprintf("could not read message from server: %s", err.Error())}
+				continue
+			}
 			c.renderer.onNewMessage(b)
 		}
 	}()

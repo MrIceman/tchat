@@ -38,7 +38,7 @@ func (h *handler) handleChannelMessage(conn net.Conn, msgType message.Type, b []
 		}
 		b, _ := json.Marshal(ch)
 		message.Transmit(conn, protocol.NewChannelsResponse(b, message.TypeChannelsJoinResponse).Bytes())
-
+		time.Sleep(1 * time.Second)
 		if err := h.chSvc.SendToChannel(channelName, types.Message{
 			UserID:      "system",
 			DisplayName: "system",
