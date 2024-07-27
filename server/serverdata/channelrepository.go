@@ -1,6 +1,7 @@
 package serverdata
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -48,8 +49,36 @@ func (cr *ChannelRepository) GetAll() []types.Channel {
 	return chL
 }
 
-func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) {
+func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) (bool, error) {
+	usr := cr.connCurrentChannelMap[conn]
+	if usr == "" {
+		return false, errors.New("no user was stored for the connection")
+	}
+	usrChannelName := cr.connCurrentChannelMap[conn]
+	if usrChannelName == "" {
+		log.Printf("user was not in any usrChannelName")
+		return true, nil
+	}
+	cr.mutex.Lock()
+	idx := slices.IndexFunc(cr.channelList, func(channel *types.Channel) bool {
+		cr.mutex.Unlock()
+		return channel.Name == usrChannelName
+	})
+	if idx == -1 {
+		cr.mutex.Unlock()
+		return false, fmt.Errorf("could not find channel in channelList with name %s", usrChannelName)
+	}
+	channel := cr.channelList[idx]
+	channel.CurrentUsers -= 1
+	cr.mutex.Unlock()
 
+	cr.sendMessageAndHandleZombieConns(protocol.NewChannelsMessage(
+		usr,
+		message2.TypeChannelUserDisconnectedMessage,
+		[]byte(usr)).Bytes(),
+		usrChannelName)
+
+	return true, nil
 }
 
 func (cr *ChannelRepository) CreateChannel(c types.Channel) error {
@@ -98,12 +127,19 @@ func (cr *ChannelRepository) NewMessage(channelName string, msg types.Message) e
 		return fmt.Errorf("channel with name %s not found", channelName)
 	}
 
-	channelConns := cr.channelConns[channelName]
-	deadConns := message2.Broadcast(channelConns, protocol.NewChannelsMessage(msg.UserID, message2.TypeChannelNewMessage, msg.MustJSON()).Bytes())
+	cr.sendMessageAndHandleZombieConns(protocol.NewChannelsMessage(msg.UserID,
+		message2.TypeChannelNewMessage, msg.MustJSON()).Bytes(), channelName)
 
-	if len(deadConns) > 0 {
+	return nil
+}
+
+func (cr *ChannelRepository) sendMessageAndHandleZombieConns(b []byte, channelName string) {
+	channelConns := cr.channelConns[channelName]
+	zombieConns := message2.Broadcast(channelConns, b)
+
+	if len(zombieConns) > 0 {
 		cr.mutex.Lock()
-		for _, conn := range deadConns {
+		for _, conn := range zombieConns {
 			log.Printf("conn %s not reachable, removing from channel %s", conn.RemoteAddr(), channelName)
 			for i, c := range channelConns {
 				if c == conn {
@@ -115,6 +151,4 @@ func (cr *ChannelRepository) NewMessage(channelName string, msg types.Message) e
 		cr.channelConns[channelName] = channelConns
 		cr.mutex.Unlock()
 	}
-
-	return nil
 }
