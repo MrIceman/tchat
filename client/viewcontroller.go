@@ -87,7 +87,15 @@ func (r *viewController) renderChannelMessage(msgType message.Type, b []byte) {
 	case message.TypeChannelsLeaveResponse:
 		_ = r.ctx.RemoveChannel()
 		r.renderTextCh <- []string{"Good Bye"}
+		r.renderTextCh <- []string{"Good Bye 123"}
 		r.onChannelQuitCh <- struct{}{}
+	case message.TypeChannelUserDisconnectedMessage:
+		c := protocol.ChannelsMessage{}
+		if err := json.Unmarshal(b, &c); err != nil {
+			r.renderTextCh <- []string{fmt.Sprintf("could not unmarshal response: %s", err.Error())}
+		}
+		userID := string(c.Payload)
+		r.renderTextCh <- []string{fmt.Sprintf("%s just the channel.", userID)}
 	default:
 		r.renderTextCh <- []string{fmt.Sprintf("unexpected message type: %s", msgType)}
 	}

@@ -123,7 +123,7 @@ func (v *app) runChannelConsumers() {
 			case channel := <-v.joinChannelCh:
 				v.JoinChannel(channel.Name)
 			case <-v.exitChannelCh:
-				v.LeaveChannel()
+				go v.LeaveChannel()
 			}
 		}
 	}()
@@ -151,7 +151,7 @@ func (v *app) JoinChannel(channelName string) {
 }
 
 func (v *app) LeaveChannel() {
-	v.renderTextCh <- []string{"heres view, leaving channel"}
+	v.renderTextCh <- []string{"---", "You left the channel.", "---"}
 	v.currentView = v.lobbyView
 	f := tview.NewFlex().
 		SetDirection(tview.FlexRow).

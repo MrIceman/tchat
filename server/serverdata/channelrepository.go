@@ -52,8 +52,9 @@ func (cr *ChannelRepository) GetAll() []types.Channel {
 }
 
 func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) error {
-	usr := cr.connCurrentChannelMap[conn.RemoteAddr().String()]
-	if usr == "" {
+	usrChannel := cr.connCurrentChannelMap[conn.RemoteAddr().String()]
+	usr := cr.connUserIDMap[conn.RemoteAddr().String()]
+	if usrChannel == "" {
 		return errors.New("no user was stored for the connection")
 	}
 	usrChannelName := cr.connCurrentChannelMap[conn.RemoteAddr().String()]
@@ -86,7 +87,7 @@ func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) error {
 		usr,
 		message2.TypeChannelUserDisconnectedMessage,
 		[]byte(usr)).Bytes(),
-		usrChannelName)
+		usrChannel)
 
 	return nil
 }
