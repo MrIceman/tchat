@@ -13,9 +13,11 @@ import (
 )
 
 type ChannelRepository struct {
-	mutex        sync.Mutex
-	channelList  []*types.Channel
-	channelConns map[string][]net.Conn
+	mutex                 sync.Mutex
+	channelList           []*types.Channel
+	channelConns          map[string][]net.Conn
+	connCurrentChannelMap map[net.Conn]string
+	connUserIDMap         map[net.Conn]string
 }
 
 func NewChannelRepository() *ChannelRepository {
@@ -32,6 +34,8 @@ func NewChannelRepository() *ChannelRepository {
 				WelcomeMessage: "Welcome to the Jungle",
 			},
 		},
+		connCurrentChannelMap: make(map[net.Conn]string),
+		connUserIDMap:         make(map[net.Conn]string),
 	}
 }
 
@@ -42,6 +46,10 @@ func (cr *ChannelRepository) GetAll() []types.Channel {
 	}
 
 	return chL
+}
+
+func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) {
+
 }
 
 func (cr *ChannelRepository) CreateChannel(c types.Channel) error {
@@ -65,6 +73,8 @@ func (cr *ChannelRepository) OnNewUser(channelName, userID string, conn net.Conn
 			cr.mutex.Lock()
 			cr.channelList[i].CurrentUsers++
 			cr.channelConns[channelName] = append(cr.channelConns[channelName], conn)
+			cr.connUserIDMap[conn] = userID
+			cr.connCurrentChannelMap[conn] = channelName
 			cr.mutex.Unlock()
 			return ch, nil
 		}
@@ -88,27 +98,23 @@ func (cr *ChannelRepository) NewMessage(channelName string, msg types.Message) e
 		return fmt.Errorf("channel with name %s not found", channelName)
 	}
 
-	wg := sync.WaitGroup{}
-	wg.Add(len(cr.channelConns[channelName]))
-	for _, conn := range cr.channelConns[channelName] {
-		go func(wg *sync.WaitGroup) {
-			if err := message2.Transmit(conn,
-				protocol.NewChannelsMessage(msg.UserID, message2.TypeChannelNewMessage, msg.MustJSON()).Bytes()); err != nil {
-				cr.mutex.Lock()
-				log.Printf("conn %s not reachable, removing from channel %s", conn.RemoteAddr(), channelName)
-				allCons := cr.channelConns[channelName]
-				for i, c := range allCons {
-					if c == conn {
-						cr.channelConns[channelName] = append(allCons[:i], allCons[i+1:]...)
-					}
-				}
-				cr.mutex.Unlock()
-			}
-			wg.Done()
-		}(&wg)
-	}
+	channelConns := cr.channelConns[channelName]
+	deadConns := message2.Broadcast(channelConns, protocol.NewChannelsMessage(msg.UserID, message2.TypeChannelNewMessage, msg.MustJSON()).Bytes())
 
-	wg.Wait()
+	if len(deadConns) > 0 {
+		cr.mutex.Lock()
+		for _, conn := range deadConns {
+			log.Printf("conn %s not reachable, removing from channel %s", conn.RemoteAddr(), channelName)
+			for i, c := range channelConns {
+				if c == conn {
+					channelConns = append(channelConns[:i], channelConns[i+1:]...)
+				}
+			}
+		}
+		// probably not necessary
+		cr.channelConns[channelName] = channelConns
+		cr.mutex.Unlock()
+	}
 
 	return nil
 }

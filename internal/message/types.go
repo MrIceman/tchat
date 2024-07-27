@@ -19,6 +19,7 @@ const (
 	TypeChannelNewMessage      Type = "channel_new_message"
 	TypeChannelsCreate         Type = "channel_create"
 	TypeChannelsCreateResponse Type = "channel_create_response"
+	TypeChannelsLeaveResponse  Type = "channel_leave_response"
 	TypeChannelsDelete         Type = "channel_delete"
 	TypeChannelsDeleteResponse Type = "channel_delete_response"
 )
@@ -33,6 +34,7 @@ var (
 		TypeChannelsGetResponse,
 		TypeChannelNewMessage,
 		TypeChannelsCreateResponse,
+		TypeChannelsLeaveResponse,
 		TypeDisconnect,
 	}
 )
