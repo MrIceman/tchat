@@ -82,6 +82,10 @@ func (c *Client) Run() {
 		for {
 			b, err := message.Receive(c.conn)
 			if err != nil {
+				if err.Error() == "EOF" {
+					c.exitCh <- struct{}{}
+					break
+				}
 				c.renderTextChan <- []string{fmt.Sprintf("could not read message from server: %s", err.Error())}
 				continue
 			}

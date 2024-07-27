@@ -74,6 +74,8 @@ func (r *viewController) renderChannelMessage(msgType message.Type, b []byte) {
 		msg := types.Message{}
 		_ = json.Unmarshal(c.Payload, &msg)
 		r.renderTextCh <- []string{fmt.Sprintf("%s %s:    %s", getTimeString(msg.CreatedAt), msg.UserID, msg.Content)}
+	case message.TypeChannelsCreateResponse:
+		r.renderTextCh <- []string{"channel created successfully. You're the admin and you can join it with /channel join <channelname> and then follow the instructions to configure it"}
 	default:
 		r.renderTextCh <- []string{fmt.Sprintf("unexpected message type: %s", msgType)}
 	}

@@ -13,18 +13,18 @@ import (
 )
 
 type handler struct {
-	svc   *serverdomain.UserService
-	chSvc *serverdomain.ChannelService
-	conns []net.Conn
-	mutex sync.Mutex
+	userSvc *serverdomain.UserService
+	chSvc   *serverdomain.ChannelService
+	conns   []net.Conn
+	mutex   sync.Mutex
 }
 
 func newHandler(chSvc *serverdomain.ChannelService, svc *serverdomain.UserService) *handler {
 	return &handler{
-		svc:   svc,
-		chSvc: chSvc,
-		mutex: sync.Mutex{},
-		conns: []net.Conn{},
+		userSvc: svc,
+		chSvc:   chSvc,
+		mutex:   sync.Mutex{},
+		conns:   []net.Conn{},
 	}
 }
 

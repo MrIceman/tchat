@@ -17,7 +17,7 @@ func (h *handler) handleConnectionMessage(conn net.Conn, msgType message.Type, b
 			log.Fatalf("could not unmarshal connect message: %s", err.Error())
 		}
 		userID := connectMsg.UserID
-		if err := h.svc.SignInUser(userID); err != nil {
+		if err := h.userSvc.SignInUser(userID); err != nil {
 			log.Fatalf("could not sign user: %s", err.Error())
 		}
 		message.Transmit(conn, protocol.NewServerSystemMessage(fmt.Sprintf("Hello %s,\n\n%s", userID, welcomeText)).Bytes())

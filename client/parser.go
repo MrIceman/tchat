@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"tchat/internal/message"
+	"tchat/internal/parsing"
 	"tchat/internal/protocol"
 	"tchat/internal/types"
 	"tchat/internal/validation"
@@ -34,6 +35,16 @@ func ParseFromInput(userID, input string) (protocol.SerializableMessage, error) 
 			}
 			channelName := parsedInput[2]
 			return protocol.NewChannelsMessage(userID, message.TypeChannelsJoin, []byte(channelName)), nil
+		}
+		if parsedInput[1] == "create" {
+			if len(parsedInput) < 3 {
+				return nil, errors.New("no channel name was provided")
+			}
+			channelName := parsedInput[2]
+			ch := types.Channel{}
+			ch.Name = channelName
+
+			return protocol.NewChannelsMessage(userID, message.TypeChannelsCreate, parsing.MustJSON(ch)), nil
 		}
 
 		return nil, errors.New("invalid arguments")
