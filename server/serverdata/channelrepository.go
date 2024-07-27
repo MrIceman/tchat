@@ -49,15 +49,15 @@ func (cr *ChannelRepository) GetAll() []types.Channel {
 	return chL
 }
 
-func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) (bool, error) {
+func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) error {
 	usr := cr.connCurrentChannelMap[conn]
 	if usr == "" {
-		return false, errors.New("no user was stored for the connection")
+		return errors.New("no user was stored for the connection")
 	}
 	usrChannelName := cr.connCurrentChannelMap[conn]
 	if usrChannelName == "" {
 		log.Printf("user was not in any usrChannelName")
-		return true, nil
+		return nil
 	}
 	cr.mutex.Lock()
 	idx := slices.IndexFunc(cr.channelList, func(channel *types.Channel) bool {
@@ -66,7 +66,7 @@ func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) (bool, erro
 	})
 	if idx == -1 {
 		cr.mutex.Unlock()
-		return false, fmt.Errorf("could not find channel in channelList with name %s", usrChannelName)
+		return fmt.Errorf("could not find channel in channelList with name %s", usrChannelName)
 	}
 	channel := cr.channelList[idx]
 	channel.CurrentUsers -= 1
@@ -80,7 +80,7 @@ func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) (bool, erro
 		[]byte(usr)).Bytes(),
 		usrChannelName)
 
-	return true, nil
+	return nil
 }
 
 func (cr *ChannelRepository) CreateChannel(c types.Channel) error {

@@ -63,11 +63,7 @@ func (h *handler) handleChannelMessage(conn net.Conn, msgType message.Type, b []
 			break
 		}
 	case message.TypeChannelsCreate:
-		channelMsg := protocol.ChannelsMessage{}
-		if err := json.Unmarshal(b, &channelMsg); err != nil {
-			log.Printf("could not unmarshal channel message: %s", err.Error())
-			break
-		}
+		channelMsg, _ := parseChannelMessage(b)
 		channel := types.Channel{}
 		if err := json.Unmarshal(channelMsg.Payload, &channel); err != nil {
 			log.Printf("could not unmarshal channel: %s", err.Error())
@@ -83,7 +79,25 @@ func (h *handler) handleChannelMessage(conn net.Conn, msgType message.Type, b []
 		}
 
 		break
+	case message.TypeChannelsLeaveResponse:
+		_, _ = parseChannelMessage(b)
+
+		if err := h.chSvc.UserDisconnected(conn); err != nil {
+			log.Printf("could not transmit message: %s", err.Error())
+			break
+		}
+		_ = message.Transmit(conn, protocol.NewChannelsResponse(nil, message.TypeChannelsLeaveResponse).Bytes())
+
 	default:
 		log.Fatalf("unexpected message: %s", msgType)
 	}
+}
+
+func parseChannelMessage(b []byte) (*protocol.ChannelsMessage, error) {
+	channelMsg := protocol.ChannelsMessage{}
+	if err := json.Unmarshal(b, &channelMsg); err != nil {
+		log.Printf("could not unmarshal channel message: %s", err.Error())
+		return nil, fmt.Errorf("could not parse channel msg: %s", err.Error())
+	}
+	return &channelMsg, nil
 }

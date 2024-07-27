@@ -40,3 +40,7 @@ func (cs *ChannelService) JoinChannel(userID, channelName string, conn net.Conn)
 func (cs *ChannelService) SendToChannel(channelName string, msg types.Message) error {
 	return cs.repository.NewMessage(channelName, msg)
 }
+
+func (cs *ChannelService) UserDisconnected(conn net.Conn) error {
+	return cs.repository.OnConnectionDisconnected(conn)
+}

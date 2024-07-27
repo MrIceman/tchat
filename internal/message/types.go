@@ -18,6 +18,7 @@ const (
 	TypeChannelNewMessage              Type = "channel_new_message"
 	TypeChannelsCreate                 Type = "channel_create"
 	TypeChannelsCreateResponse         Type = "channel_create_response"
+	TypeChannelLeave                   Type = "channel_leave"
 	TypeChannelsLeaveResponse          Type = "channel_leave_response"
 	TypeChannelUserDisconnectedMessage Type = "channel_user_disconnected_response"
 	TypeChannelsDelete                 Type = "channel_delete"
