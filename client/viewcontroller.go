@@ -95,7 +95,7 @@ func (r *viewController) renderChannelMessage(msgType message.Type, b []byte) {
 			r.renderTextCh <- []string{fmt.Sprintf("could not unmarshal response: %s", err.Error())}
 		}
 		userID := string(c.Payload)
-		r.renderTextCh <- []string{fmt.Sprintf("%s just the channel.", userID)}
+		r.renderTextCh <- []string{fmt.Sprintf("%s left the channel.", userID)}
 	default:
 		r.renderTextCh <- []string{fmt.Sprintf("unexpected message type: %s", msgType)}
 	}
