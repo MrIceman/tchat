@@ -70,6 +70,8 @@ func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) (bool, erro
 	}
 	channel := cr.channelList[idx]
 	channel.CurrentUsers -= 1
+	delete(cr.connUserIDMap, conn)
+	delete(cr.connCurrentChannelMap, conn)
 	cr.mutex.Unlock()
 
 	cr.sendMessageAndHandleZombieConns(protocol.NewChannelsMessage(
