@@ -18,26 +18,29 @@ func init() {
 }
 
 type Client struct {
+	ctx      *clientContext
 	renderer *viewController
 	conn     net.Conn
 	id       string
-	app      *app
 
+	app             *app
 	sendMessageChan chan []byte
 	renderTextChan  chan []string
-	exitCh          chan struct{}
+
+	exitCh chan struct{}
 }
 
 func New(conn net.Conn) *Client {
+	ctx := newClientContext()
 	clientID := uuid.NewString()
 	sendMessageCh := make(chan []byte)
 	channelsJoinedCh := make(chan types2.Channel)
 	renderTextCh := make(chan []string)
 	exitChannelCh := make(chan struct{})
-	v := newView(sendMessageCh, renderTextCh, channelsJoinedCh, exitChannelCh)
 	exitCh := make(chan struct{})
+	v := newView(ctx, sendMessageCh, renderTextCh, channelsJoinedCh, exitChannelCh)
+	renderer := newViewController(ctx, renderTextCh, channelsJoinedCh, exitChannelCh)
 	v.setUp()
-	renderer := newViewController(renderTextCh, channelsJoinedCh)
 
 	return &Client{
 		conn:            conn,
@@ -47,11 +50,12 @@ func New(conn net.Conn) *Client {
 		sendMessageChan: sendMessageCh,
 		app:             v,
 		exitCh:          exitCh,
+		ctx:             ctx,
 	}
 }
 
 func (c *Client) Connect() {
-	message.Transmit(c.conn, protocol.NewClientConnectMessage(c.id).Bytes())
+	_ = message.Transmit(c.conn, protocol.NewClientConnectMessage(c.id).Bytes())
 	b, _ := message.Receive(c.conn)
 	resp, _ := message.RawFromBytes(b)
 	switch resp["type"] {
@@ -100,7 +104,7 @@ func (c *Client) Run() {
 				c.renderTextChan <- []string{"Disconnected from server"}
 				os.Exit(0)
 			case msg := <-c.sendMessageChan:
-				m, err := ParseFromInput(c.id, string(msg))
+				m, err := ParseFromInput(c.ctx, c.id, string(msg))
 				// check if m is instance of DisconnectMessage
 				if _, ok := m.(protocol.DisconnectMessage); ok {
 					c.exitCh <- struct{}{}
@@ -111,7 +115,7 @@ func (c *Client) Run() {
 					c.renderTextChan <- []string{fmt.Sprintf("could not parse message: %s", err.Error())}
 					c.app.lobbyView.ScrollToEnd()
 				} else {
-					message.Transmit(c.conn, m.Bytes())
+					_ = message.Transmit(c.conn, m.Bytes())
 				}
 			}
 		}

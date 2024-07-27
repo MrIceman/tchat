@@ -19,15 +19,16 @@ type app struct {
 	currentView *tview.TextView
 	inputView   *tview.InputField
 
-	currentChannel *string
+	ctx *clientContext
 }
 
-func newView(sendMessageChan chan []byte, renderTextCh chan []string, joinChannelCh chan types2.Channel, exitChannelCh chan struct{}) *app {
+func newView(ctx *clientContext, sendMessageChan chan []byte, renderTextCh chan []string, joinChannelCh chan types2.Channel, exitChannelCh chan struct{}) *app {
 	return &app{
 		sendMessageCh: sendMessageChan,
 		renderTextCh:  renderTextCh,
 		joinChannelCh: joinChannelCh,
 		exitChannelCh: exitChannelCh,
+		ctx:           ctx,
 	}
 }
 
@@ -41,14 +42,15 @@ func (v *app) setUp() {
 	inputField.SetFieldTextColor(tcell.ColorBlack)
 
 	inputField.SetDoneFunc(func(key tcell.Key) {
+		txt := inputField.GetText()
 		if key == tcell.KeyEnter {
 			statePrefix := ""
-			// kinda ugly but for now it works
-			if v.currentChannel != nil {
-				statePrefix = channelNewUserMessagePrefix
-				statePrefix += fmt.Sprintf("%s#", *v.currentChannel)
+			// kinda ugly but for now it works, if msg starts with / then it is also not a message command
+			// but a channel command
+			if v.ctx.currentChannel != nil && strings.Index(txt, "/") != 0 {
+				statePrefix = "/message "
 			}
-			v.sendMessageCh <- []byte(statePrefix + inputField.GetText())
+			v.sendMessageCh <- []byte(statePrefix + txt)
 			inputField.SetText("")
 		}
 	})
@@ -140,7 +142,6 @@ func (v *app) Run() error {
 }
 
 func (v *app) JoinChannel(channelName string) {
-	v.currentChannel = &channelName
 	v.currentView = v.setUpChannelView(v.application, types2.Channel{Name: channelName})
 	f := tview.NewFlex().
 		SetDirection(tview.FlexRow).
@@ -150,7 +151,7 @@ func (v *app) JoinChannel(channelName string) {
 }
 
 func (v *app) LeaveChannel() {
-	v.currentChannel = nil
+	v.renderTextCh <- []string{"heres view, leaving channel"}
 	v.currentView = v.lobbyView
 	f := tview.NewFlex().
 		SetDirection(tview.FlexRow).

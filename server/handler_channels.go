@@ -79,14 +79,14 @@ func (h *handler) handleChannelMessage(conn net.Conn, msgType message.Type, b []
 		}
 
 		break
-	case message.TypeChannelsLeaveResponse:
+	case message.TypeChannelLeave:
 		_, _ = parseChannelMessage(b)
+		_ = message.Transmit(conn, protocol.NewChannelsResponse(nil, message.TypeChannelsLeaveResponse).Bytes())
 
 		if err := h.chSvc.UserDisconnected(conn); err != nil {
 			log.Printf("could not transmit message: %s", err.Error())
 			break
 		}
-		_ = message.Transmit(conn, protocol.NewChannelsResponse(nil, message.TypeChannelsLeaveResponse).Bytes())
 
 	default:
 		log.Fatalf("unexpected message: %s", msgType)

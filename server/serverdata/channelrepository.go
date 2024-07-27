@@ -13,12 +13,14 @@ import (
 	"time"
 )
 
+type userIP = string
+
 type ChannelRepository struct {
 	mutex                 sync.Mutex
 	channelList           []*types.Channel
 	channelConns          map[string][]net.Conn
-	connCurrentChannelMap map[net.Conn]string
-	connUserIDMap         map[net.Conn]string
+	connCurrentChannelMap map[userIP]string
+	connUserIDMap         map[userIP]string
 }
 
 func NewChannelRepository() *ChannelRepository {
@@ -35,8 +37,8 @@ func NewChannelRepository() *ChannelRepository {
 				WelcomeMessage: "Welcome to the Jungle",
 			},
 		},
-		connCurrentChannelMap: make(map[net.Conn]string),
-		connUserIDMap:         make(map[net.Conn]string),
+		connCurrentChannelMap: make(map[string]string),
+		connUserIDMap:         make(map[string]string),
 	}
 }
 
@@ -50,18 +52,17 @@ func (cr *ChannelRepository) GetAll() []types.Channel {
 }
 
 func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) error {
-	usr := cr.connCurrentChannelMap[conn]
+	usr := cr.connCurrentChannelMap[conn.RemoteAddr().String()]
 	if usr == "" {
 		return errors.New("no user was stored for the connection")
 	}
-	usrChannelName := cr.connCurrentChannelMap[conn]
+	usrChannelName := cr.connCurrentChannelMap[conn.RemoteAddr().String()]
 	if usrChannelName == "" {
 		log.Printf("user was not in any usrChannelName")
 		return nil
 	}
 	cr.mutex.Lock()
 	idx := slices.IndexFunc(cr.channelList, func(channel *types.Channel) bool {
-		cr.mutex.Unlock()
 		return channel.Name == usrChannelName
 	})
 	if idx == -1 {
@@ -70,8 +71,15 @@ func (cr *ChannelRepository) OnConnectionDisconnected(conn net.Conn) error {
 	}
 	channel := cr.channelList[idx]
 	channel.CurrentUsers -= 1
-	delete(cr.connUserIDMap, conn)
-	delete(cr.connCurrentChannelMap, conn)
+	delete(cr.connUserIDMap, conn.RemoteAddr().String())
+	delete(cr.connCurrentChannelMap, conn.RemoteAddr().String())
+	allChannelCons := cr.channelConns[usrChannelName]
+	connIdx := slices.IndexFunc(allChannelCons, func(c net.Conn) bool {
+		return conn == c
+	})
+
+	newChannelConns := append(allChannelCons[:connIdx], allChannelCons[connIdx+1:]...)
+	cr.channelConns[usrChannelName] = newChannelConns
 	cr.mutex.Unlock()
 
 	cr.sendMessageAndHandleZombieConns(protocol.NewChannelsMessage(
@@ -104,8 +112,8 @@ func (cr *ChannelRepository) OnNewUser(channelName, userID string, conn net.Conn
 			cr.mutex.Lock()
 			cr.channelList[i].CurrentUsers++
 			cr.channelConns[channelName] = append(cr.channelConns[channelName], conn)
-			cr.connUserIDMap[conn] = userID
-			cr.connCurrentChannelMap[conn] = channelName
+			cr.connUserIDMap[conn.RemoteAddr().String()] = userID
+			cr.connCurrentChannelMap[conn.RemoteAddr().String()] = channelName
 			cr.mutex.Unlock()
 			return ch, nil
 		}

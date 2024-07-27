@@ -12,13 +12,18 @@ import (
 
 type viewController struct {
 	onChannelJoinCh chan types.Channel
+	onChannelQuitCh chan struct{}
 	renderTextCh    chan []string
+
+	ctx *clientContext
 }
 
-func newViewController(renderTextCh chan []string, onChannelJoinCh chan types.Channel) *viewController {
+func newViewController(ctx *clientContext, renderTextCh chan []string, onChannelJoinCh chan types.Channel, onChannelQuit chan struct{}) *viewController {
 	return &viewController{
+		ctx:             ctx,
 		renderTextCh:    renderTextCh,
 		onChannelJoinCh: onChannelJoinCh,
+		onChannelQuitCh: onChannelQuit,
 	}
 }
 
@@ -59,6 +64,9 @@ func (r *viewController) renderChannelMessage(msgType message.Type, b []byte) {
 		}
 		channel := types.Channel{}
 		_ = json.Unmarshal(c.Payload, &channel)
+		if err := r.ctx.SetChannel(&channel); err != nil {
+			log.Fatalf("user tried to join a channel while being in a channel already")
+		}
 		r.onChannelJoinCh <- channel
 		r.renderTextCh <- []string{fmt.Sprintf("#### Joined Channel %s - There are currently %d users online ####", channel.Name, channel.CurrentUsers)}
 		r.renderTextCh <- []string{"#### Type /leave to leave the channel ####"}
@@ -76,6 +84,10 @@ func (r *viewController) renderChannelMessage(msgType message.Type, b []byte) {
 		r.renderTextCh <- []string{fmt.Sprintf("%s %s:    %s", getTimeString(msg.CreatedAt), msg.UserID, msg.Content)}
 	case message.TypeChannelsCreateResponse:
 		r.renderTextCh <- []string{"channel created successfully. You're the admin and you can join it with /channel join <channelname> and then follow the instructions to configure it"}
+	case message.TypeChannelsLeaveResponse:
+		_ = r.ctx.RemoveChannel()
+		r.renderTextCh <- []string{"Good Bye"}
+		r.onChannelQuitCh <- struct{}{}
 	default:
 		r.renderTextCh <- []string{fmt.Sprintf("unexpected message type: %s", msgType)}
 	}

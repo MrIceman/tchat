@@ -35,6 +35,7 @@ var (
 		TypeChannelsJoinResponse,
 		TypeChannelNewMessage,
 		TypeChannelsCreateResponse,
+		TypeChannelLeave,
 		TypeChannelsLeaveResponse,
 		TypeChannelUserDisconnectedMessage,
 	}

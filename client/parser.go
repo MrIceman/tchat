@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"tchat/internal/message"
 	"tchat/internal/parsing"
@@ -11,14 +12,13 @@ import (
 	"time"
 )
 
-const (
-	channelNewUserMessagePrefix = "#newmessage#"
-)
-
-func ParseFromInput(userID, input string) (protocol.SerializableMessage, error) {
+func ParseFromInput(ctx *clientContext, userID, input string) (protocol.SerializableMessage, error) {
 	input = strings.ReplaceAll(input, "\n", "")
 	parsedInput := strings.Split(input, " ")
 	msgType := parsedInput[0]
+	if ctx.currentChannel != nil {
+		return parseChannelInput(ctx, userID, input, msgType)
+	}
 	switch msgType {
 	case "/exit":
 		return protocol.DisconnectMessage{}, nil
@@ -49,20 +49,26 @@ func ParseFromInput(userID, input string) (protocol.SerializableMessage, error) 
 
 		return nil, errors.New("invalid arguments")
 	default:
-		// dont like encoding it in the message, but for now it works
-		if strings.HasPrefix(input, channelNewUserMessagePrefix) {
-			msgWithoutPrefix := strings.TrimPrefix(input, channelNewUserMessagePrefix)
-			channelAndMsg := strings.Split(msgWithoutPrefix, "#")
-			b := types.Message{
-				UserID:      userID,
-				Channel:     channelAndMsg[0],
-				DisplayName: userID,
-				Content:     channelAndMsg[1],
-				CreatedAt:   time.Now(),
-			}.MustJSON()
-
-			return protocol.NewChannelsMessage(userID, message.TypeChannelNewMessage, b), nil
-		}
 		return nil, validation.ErrMessageTypeNotImplemented
 	}
+}
+
+func parseChannelInput(ctx *clientContext, userID, input string, msgType string) (protocol.SerializableMessage, error) {
+	switch msgType {
+	case "/message":
+		msgWithoutPrefix := strings.TrimPrefix(input, "/message ")
+		b := types.Message{
+			UserID:      userID,
+			Channel:     ctx.currentChannel.Name,
+			DisplayName: userID,
+			Content:     msgWithoutPrefix,
+			CreatedAt:   time.Now(),
+		}.MustJSON()
+
+		return protocol.NewChannelsMessage(userID, message.TypeChannelNewMessage, b), nil
+	case "/leave":
+		return protocol.NewChannelsMessage(userID, message.TypeChannelLeave, nil), nil
+	}
+	return nil, fmt.Errorf("%s: %s", validation.ErrInvalidMessageType, msgType)
+
 }
