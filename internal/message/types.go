@@ -11,6 +11,7 @@ const (
 	TypeConnect    Type = "connect"
 	TypeConnectRes Type = "connect_res"
 
+	TypeError                               = "error"
 	TypeChannelsGet                    Type = "channel_get"
 	TypeChannelsGetResponse                 = "channel_get_response"
 	TypeChannelsJoin                   Type = "channel_join"
@@ -22,11 +23,14 @@ const (
 	TypeChannelsLeaveResponse          Type = "channel_leave_response"
 	TypeChannelUserDisconnectedMessage Type = "channel_user_disconnected_response"
 	TypeChannelsDelete                 Type = "channel_delete"
-	TypeChannelsDeleteResponse         Type = "channel_delete_response"
+	TypeChannelDeleteResponse          Type = "channel_delete_response"
+	TypeChannelDeleteFailedResponse    Type = "channel_delete_failed_response"
+	TypeChannelMustLeave               Type = "channel_must_leave"
 )
 
 var (
 	allMessagesTypes = []Type{
+		TypeError,
 		TypeConnect,
 		TypeConnectRes,
 		TypeChannelsGet,
@@ -38,6 +42,9 @@ var (
 		TypeChannelLeave,
 		TypeChannelsLeaveResponse,
 		TypeChannelUserDisconnectedMessage,
+		TypeChannelDeleteResponse,
+		TypeChannelDeleteFailedResponse,
+		TypeChannelMustLeave,
 	}
 )
 

@@ -79,6 +79,17 @@ func (h *handler) handleChannelMessage(conn net.Conn, msgType message.Type, b []
 		}
 
 		break
+	case message.TypeChannelsDelete:
+		channelMsg, _ := parseChannelMessage(b)
+		userID := channelMsg.User()
+		channelName := string(channelMsg.Payload)
+		if err := h.chSvc.DeleteChannel(userID, channelName); err != nil {
+			log.Printf("could not delete channel: %s", err.Error())
+			_ = message.Transmit(conn, protocol.NewChannelsResponse(nil, message.TypeChannelDeleteFailedResponse).Bytes())
+
+		}
+		_ = message.Transmit(conn, protocol.NewChannelsResponse(nil, message.TypeChannelDeleteResponse).Bytes())
+		break
 	case message.TypeChannelLeave:
 		_, _ = parseChannelMessage(b)
 		_ = message.Transmit(conn, protocol.NewChannelsResponse(nil, message.TypeChannelsLeaveResponse).Bytes())

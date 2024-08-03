@@ -44,3 +44,15 @@ func (cs *ChannelService) SendToChannel(channelName string, msg types.Message) e
 func (cs *ChannelService) UserDisconnected(conn net.Conn) error {
 	return cs.repository.OnConnectionDisconnected(conn)
 }
+
+func (cs *ChannelService) DeleteChannel(id string, channelname string) error {
+	channel, err := cs.repository.GetByName(channelname)
+	if err != nil {
+		return err
+	}
+
+	if channel.Owner != id {
+		return ErrUserNotChannelOwner
+	}
+	return cs.repository.Delete(channelname)
+}

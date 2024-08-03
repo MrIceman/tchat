@@ -42,6 +42,16 @@ func NewChannelRepository() *ChannelRepository {
 	}
 }
 
+func (cr *ChannelRepository) GetByName(channelname string) (types.Channel, error) {
+	for i := range cr.channelList {
+		c := cr.channelList[i]
+		if c.Name == channelname {
+			return *c, nil
+		}
+	}
+	return types.Channel{}, fmt.Errorf("channel %s does not exist", channelname)
+}
+
 func (cr *ChannelRepository) GetAll() []types.Channel {
 	chL := make([]types.Channel, len(cr.channelList))
 	for i, c := range cr.channelList {
@@ -162,4 +172,22 @@ func (cr *ChannelRepository) sendMessageAndHandleZombieConns(b []byte, channelNa
 		cr.channelConns[channelName] = channelConns
 		cr.mutex.Unlock()
 	}
+}
+
+func (cr *ChannelRepository) Delete(channelname string) error {
+	cr.mutex.Lock()
+	defer cr.mutex.Unlock()
+	for i := range cr.channelList {
+		c := cr.channelList[i]
+		if c.Name == channelname {
+			cr.sendMessageAndHandleZombieConns(protocol.NewChannelsMessage(
+				"system",
+				message2.TypeChannelMustLeave, nil).Bytes(),
+				channelname)
+			cr.channelList = append(cr.channelList[:i], cr.channelList[i+1:]...)
+			return nil
+		}
+	}
+
+	return errors.New("channel could not be found")
 }
